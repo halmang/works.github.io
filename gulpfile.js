@@ -1,5 +1,8 @@
+'use strict';
+
 const gulp = require('gulp');
 const autoprefixer = require('gulp-autoprefixer');
+const babelify = require('babelify');
 const browserify = require('browserify');
 const buffer = require('vinyl-buffer');
 const cleanCSS = require('gulp-clean-css');
@@ -11,75 +14,77 @@ const stylelint = require('gulp-stylelint');
 const uglify = require('gulp-uglify');
 const zip = require('gulp-zip');
 
-function lintStyles() {
+gulp.task('stylelint', () => {
   return gulp.src([
-    './_assets/scss/**/*.scss',
-    '!./_assets/scss/vendor/_normalize.scss',
-    '!./_assets/scss/fonts/*.scss'
+    './src/scss/**/*.scss',
+    '!./src/scss/vendor/_normalize.scss',
+    '!./src/scss/fonts/*.scss'
   ])
-    .pipe(stylelint({
-      reporters: [
-        {formatter: 'string', console: true}
-      ]
-    }));
-}
+  .pipe(stylelint({
+    reporters: [
+      {formatter: 'string', console: true}
+    ]
+  }));
+});
 
-function styles() {
-  return gulp.src('./_assets/scss/app.scss')
-    .pipe(sass().on('error', sass.logError))
-    .pipe(autoprefixer({cascade: false}))
-    .pipe(cleanCSS())
-    .pipe(rename({suffix: '.min'}))
-    .pipe(gulp.dest('./assets/css'));
-}
+gulp.task('sass', () => {
+  return gulp.src('./src/scss/app.scss')
+  .pipe(sass().on('error', sass.logError))
+  .pipe(autoprefixer({browsers: ['last 2 versions'], cascade: false}))
+  .pipe(cleanCSS())
+  .pipe(rename('styles-app.hbs'))
+  .pipe(gulp.dest('./partials'));
+});
 
-function lint() {
+gulp.task('amp', () => {
+  return gulp.src('./src/scss/amp.scss')
+  .pipe(sass().on('error', sass.logError))
+  .pipe(autoprefixer({browsers: ['last 2 versions'], cascade: false}))
+  .pipe(cleanCSS())
+  .pipe(rename('styles-amp.hbs'))
+  .pipe(gulp.dest('./partials'));
+});
+
+gulp.task('lint', () => {
   return gulp.src([
-    './_assets/js/components/_formcarry.js',
-    './_assets/js/components/_infiniteScroll.js',
-    './_assets/js/components/_mailChimp.js',
-    './_assets/js/components/_miscellaneous.js',
-    './_assets/js/components/_pageTransition.js',
-    './_assets/js/components/_popup.js',
-    './_assets/js/_inits.js'
+    './src/js/components/_formcarry.js',
+    './src/js/components/_infiniteScroll.js',
+    './src/js/components/_miscellaneous.js',
+    './src/js/components/_pageTransition.js',
+    './src/js/_inits.js'
   ])
-    .pipe(eslint())
-    .pipe(eslint.format())
-    .pipe(eslint.failAfterError());
-}
+  .pipe(eslint())
+  .pipe(eslint.format())
+  .pipe(eslint.failAfterError());
+});
 
-function scripts() {
-  return browserify('./_assets/js/app.js')
-    .transform('babelify', {presets: ['@babel/preset-env']})
-    .bundle()
-    .pipe(source('app.js'))
-    .pipe(buffer())
-    .pipe(uglify())
-    .pipe(rename({suffix: '.min'}))
-    .pipe(gulp.dest('./assets/js'));
-}
+gulp.task('browserify', () => {
+  return browserify('./src/js/app.js')
+  .transform('babelify', {presets: ['env']})
+  .bundle()
+  .pipe(source('app.js'))
+  .pipe(buffer())
+  .pipe(uglify())
+  .pipe(rename({suffix: '.min'}))
+  .pipe(gulp.dest('./assets/js'));
+});
 
-function dist() {
+gulp.task('zip', () => {
   return gulp.src([
     './**',
     '!./.DS_Store',
     '!./.git',
     '!./node_modules/**'
   ])
-    .pipe(zip('barber-jekyll.zip'))
-    .pipe(gulp.dest('../'))
-}
+  .pipe(zip('barber-ghost.zip'))
+  .pipe(gulp.dest('../'))
+});
 
-function watch() {
-  gulp.watch('./_assets/scss/**/*.scss', styles);
-  gulp.watch('./_assets/js/**/*.js', scripts);
-}
+gulp.task('build', ['sass', 'amp', 'browserify']);
 
-const build = gulp.series(styles, scripts, watch);
-gulp.task('default', build);
+gulp.task('watch', () => {
+  gulp.watch('./src/scss/**/*.scss', ['sass', 'amp']);
+  gulp.watch('./src/js/**/*.js', ['browserify']);
+});
 
-exports.lintStyles = lintStyles;
-exports.styles = styles;
-exports.lint = lint;
-exports.scripts = scripts;
-exports.dist = dist;
+gulp.task('default', ['build', 'watch']);
